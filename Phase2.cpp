@@ -1,6 +1,5 @@
 #include <bits/stdc++.h>
 using namespace std;
-
 char M[300][4];
 char IR[4], R[4];
 int IC;
@@ -9,48 +8,30 @@ int SI, PI, TI;
 int PTR;
 int TTC, LLC;
 int TTL, TLL;
-
 ifstream fin;
 ofstream fout;
-
 vector<int> usedFrames;
-int currentPage = 0;
+int wordPtr = 0;
 bool terminated = false;
-
-// ====================== INIT ======================
 void init()
 {
     for (int i = 0; i < 300; i++)
-    {
         for (int j = 0; j < 4; j++)
-        {
             M[i][j] = ' ';
-        }
-    }
-
     for (int i = 0; i < 4; i++)
-    {
-        IR[i] = ' ';
-        R[i] = ' ';
-    }
-
+        IR[i] = R[i] = ' ';
     IC = 0;
     C = false;
     SI = PI = TI = 0;
     TTC = LLC = 0;
-    currentPage = 0;
+    wordPtr = 0;
     terminated = false;
     usedFrames.clear();
 }
-
-// ====================== ALLOCATE FRAME ======================
 int allocateFrame()
 {
-    if (usedFrames.size() >= 30)
-    {
-        terminate(6); // No more frames
-        exit(1);
-    }
+    if ((int)usedFrames.size() >= 30)
+        return -1;
     while (true)
     {
         int f = rand() % 30;
@@ -61,8 +42,22 @@ int allocateFrame()
         }
     }
 }
-
-// ====================== ADDRESS MAP ======================
+void terminate(int EM)
+{
+    fout << "\n";
+    switch (EM)
+    {
+    case 0: fout << "NO ERROR\n";             break;
+    case 1: fout << "OUT OF DATA\n";          break;
+    case 2: fout << "LINE LIMIT EXCEEDED\n";  break;
+    case 3: fout << "TIME LIMIT EXCEEDED\n";  break;
+    case 4: fout << "OPERATION CODE ERROR\n"; break;
+    case 5: fout << "OPERAND ERROR\n";        break;
+    case 6: fout << "INVALID PAGE FAULT\n";   break;
+    }
+    fout << "\n";
+    terminated = true;
+}
 int addressMap(int VA)
 {
     if (VA < 0 || VA > 99)
@@ -72,90 +67,50 @@ int addressMap(int VA)
     }
     int page = VA / 10;
     int PTE = PTR + page;
-
-    if (M[PTE][0] == '*' || !isdigit(M[PTE][2]) || !isdigit(M[PTE][3]))
+    if (M[PTE][0] == '*')
     {
         PI = 3;
+        return -1;
+    }
+    if (!isdigit(M[PTE][2]) || !isdigit(M[PTE][3]))
+    {
+        PI = 2;
         return -1;
     }
     int frame = (M[PTE][2] - '0') * 10 + (M[PTE][3] - '0');
     return frame * 10 + (VA % 10);
 }
-
-// ====================== TERMINATE ======================
-void terminate(int EM)
-{
-    fout << "\n\n";
-    switch (EM)
-    {
-    case 0:
-        fout << "NO ERROR\n";
-        break;
-    case 1:
-        fout << "OUT OF DATA\n";
-        break;
-    case 2:
-        fout << "LINE LIMIT EXCEEDED\n";
-        break;
-    case 3:
-        fout << "TIME LIMIT EXCEEDED\n";
-        break;
-    case 4:
-        fout << "OPERATION CODE ERROR\n";
-        break;
-    case 5:
-        fout << "OPERAND ERROR\n";
-        break;
-    case 6:
-        fout << "INVALID PAGE FAULT\n";
-        break;
-    }
-    terminated = true;
-}
-
-// ====================== MASTER MODE ======================
 void MOS()
 {
-    if (terminated)
-        return;
-
-    // TI has highest priority
+    if (terminated) return;
     if (TI == 2)
     {
-        if (SI == 2)
-        { // Allow last PD
-            LLC++;
-            if (LLC <= TLL)
-            {
-                int VA = (IR[2] - '0') * 10 + (IR[3] - '0');
-                int RA = addressMap(VA);
-                if (PI == 0)
-                {
-                    for (int i = RA; i < RA + 10; i++)
-                        for (int j = 0; j < 4; j++)
-                            fout << M[i][j];
-                    fout << "\n";
-                }
-            }
-        }
         terminate(3);
         return;
     }
-
-    // PI Handling
     if (PI != 0)
     {
         if (PI == 3)
         {
-            if ((IR[0] == 'G' && IR[1] == 'D') || (IR[0] == 'S' && IR[1] == 'R'))
+            if ((IR[0] == 'G' && IR[1] == 'D') ||
+                (IR[0] == 'S' && IR[1] == 'R') ||
+                (IR[0] == 'L' && IR[1] == 'R') ||
+                (IR[0] == 'C' && IR[1] == 'R') ||
+                (IR[0] == 'P' && IR[1] == 'D') ||
+                (IR[0] == 'B' && IR[1] == 'T'))
             {
                 int VA = (IR[2] - '0') * 10 + (IR[3] - '0');
                 int page = VA / 10;
                 int frame = allocateFrame();
+                if (frame == -1)
+                {
+                    terminate(6);
+                    return;
+                }
                 M[PTR + page][0] = '0';
                 M[PTR + page][1] = '0';
-                M[PTR + page][2] = (frame / 10) + '0';
-                M[PTR + page][3] = (frame % 10) + '0';
+                M[PTR + page][2] = (char)((frame / 10) + '0');
+                M[PTR + page][3] = (char)((frame % 10) + '0');
                 PI = 0;
                 return;
             }
@@ -165,16 +120,12 @@ void MOS()
                 return;
             }
         }
-        else if (PI == 1)
-            terminate(4);
-        else if (PI == 2)
-            terminate(5);
+        else if (PI == 1) terminate(4);
+        else if (PI == 2) terminate(5);
         return;
     }
-
-    // SI Handling
     if (SI == 1)
-    { // GD
+    {
         string line;
         if (!getline(fin, line) || line.substr(0, 4) == "$END")
         {
@@ -184,8 +135,13 @@ void MOS()
         int VA = (IR[2] - '0') * 10 + (IR[3] - '0');
         int RA = addressMap(VA);
         if (PI != 0)
-            return;
-
+        {
+            MOS();
+            if (terminated) return;
+            PI = 0;
+            RA = addressMap(VA);
+            if (PI != 0) { terminate(5); return; }
+        }
         int k = 0;
         for (int i = RA; i < RA + 10; i++)
             for (int j = 0; j < 4; j++)
@@ -193,7 +149,7 @@ void MOS()
         SI = 0;
     }
     else if (SI == 2)
-    { // PD
+    {
         LLC++;
         if (LLC > TLL)
         {
@@ -203,8 +159,13 @@ void MOS()
         int VA = (IR[2] - '0') * 10 + (IR[3] - '0');
         int RA = addressMap(VA);
         if (PI != 0)
-            return;
-
+        {
+            MOS();
+            if (terminated) return;
+            PI = 0;
+            RA = addressMap(VA);
+            if (PI != 0) { terminate(5); return; }
+        }
         for (int i = RA; i < RA + 10; i++)
             for (int j = 0; j < 4; j++)
                 fout << M[i][j];
@@ -216,8 +177,6 @@ void MOS()
         terminate(0);
     }
 }
-
-// ====================== EXECUTE ======================
 void executeUserProgram()
 {
     while (!terminated)
@@ -226,33 +185,41 @@ void executeUserProgram()
         {
             TI = 2;
             MOS();
-            continue;
+            return;
         }
-
         int RA = addressMap(IC);
         if (PI != 0)
         {
-            MOS();
-            if (PI == 0)
-            { // Page fault resolved
-                IC--;
-                continue;
+            int page = IC / 10;
+            int frame = allocateFrame();
+            if (frame == -1 || PI == 2)
+            {
+                terminate(PI == 2 ? 5 : 6);
+                return;
             }
-            return;
+            M[PTR + page][0] = '0';
+            M[PTR + page][1] = '0';
+            M[PTR + page][2] = (char)((frame / 10) + '0');
+            M[PTR + page][3] = (char)((frame % 10) + '0');
+            PI = 0;
+            continue;
         }
-
         memcpy(IR, M[RA], 4);
         IC++;
-
+        TTC++;
+        if (IR[0] == 'H')
+        {
+            SI = 3;
+            MOS();
+            return;
+        }
         if (!isdigit(IR[2]) || !isdigit(IR[3]))
         {
             PI = 2;
             MOS();
             return;
         }
-
         string op(IR, IR + 2);
-
         if (op == "GD")
         {
             SI = 1;
@@ -270,6 +237,7 @@ void executeUserProgram()
             if (PI != 0)
             {
                 MOS();
+                if (!terminated) IC--;
                 continue;
             }
             memcpy(R, M[loc], 4);
@@ -281,6 +249,7 @@ void executeUserProgram()
             if (PI != 0)
             {
                 MOS();
+                if (!terminated) IC--;
                 continue;
             }
             memcpy(M[loc], R, 4);
@@ -292,6 +261,7 @@ void executeUserProgram()
             if (PI != 0)
             {
                 MOS();
+                if (!terminated) IC--;
                 continue;
             }
             C = (memcmp(R, M[loc], 4) == 0);
@@ -300,19 +270,7 @@ void executeUserProgram()
         {
             int VA = (IR[2] - '0') * 10 + (IR[3] - '0');
             if (C)
-            {
-                int oldPI = PI;
-                int test = addressMap(VA);
-                if (PI == 0)
-                    IC = VA;
-                PI = oldPI; // Restore PI
-            }
-        }
-        else if (IR[0] == 'H')
-        {
-            SI = 3;
-            MOS();
-            return;
+                IC = VA;
         }
         else
         {
@@ -320,25 +278,44 @@ void executeUserProgram()
             MOS();
             return;
         }
-        TTC++;
     }
 }
-
-// ====================== LOAD ======================
+void loadWord(char c0, char c1, char c2, char c3)
+{
+    int page = wordPtr / 10;
+    if (page >= 10) { terminate(6); return; }
+    if (M[PTR + page][0] == '*')
+    {
+        int frame = allocateFrame();
+        if (frame == -1) { terminate(6); return; }
+        M[PTR + page][0] = '0';
+        M[PTR + page][1] = '0';
+        M[PTR + page][2] = (char)((frame / 10) + '0');
+        M[PTR + page][3] = (char)((frame % 10) + '0');
+    }
+    int frame = (M[PTR + page][2] - '0') * 10 + (M[PTR + page][3] - '0');
+    int physAddr = frame * 10 + (wordPtr % 10);
+    M[physAddr][0] = c0;
+    M[physAddr][1] = c1;
+    M[physAddr][2] = c2;
+    M[physAddr][3] = c3;
+    wordPtr++;
+}
 void load()
 {
     string line;
     while (getline(fin, line))
     {
-        if (line.empty())
-            continue;
-
+        if (line.empty()) continue;
         if (line.substr(0, 4) == "$AMJ")
         {
             init();
+            wordPtr = 0;
             TTL = stoi(line.substr(8, 4));
             TLL = stoi(line.substr(12, 4));
-            PTR = allocateFrame() * 10;
+            int ptFrame = allocateFrame();
+            if (ptFrame == -1) { fout << "OUT OF MEMORY\n"; return; }
+            PTR = ptFrame * 10;
             for (int i = PTR; i < PTR + 10; i++)
                 M[i][0] = M[i][1] = M[i][2] = M[i][3] = '*';
         }
@@ -346,53 +323,35 @@ void load()
         {
             executeUserProgram();
         }
-        else if (line.substr(0, 4) == "$END")
-        {
-            continue;
-        }
+        else if (line.substr(0, 4) == "$END") continue;
         else
         {
-            if (currentPage >= 10)
-            {
-                terminate(6);
-                break;
-            }
-            int frame = allocateFrame();
-            int page = currentPage++;
-
-            M[PTR + page][0] = '0';
-            M[PTR + page][1] = '0';
-            M[PTR + page][2] = (frame / 10) + '0';
-            M[PTR + page][3] = (frame % 10) + '0';
-
             int k = 0;
-            for (int i = frame * 10; i < frame * 10 + 10; i++)
+            int lineLen = (int)line.length();
+            while (k < lineLen)
             {
+                char c[4] = {' ', ' ', ' ', ' '};
                 for (int j = 0; j < 4; j++)
-                {
-                    M[i][j] = (k < (int)line.length()) ? line[k++] : ' ';
-                }
+                    if (k < lineLen) c[j] = line[k++];
+                loadWord(c[0], c[1], c[2], c[3]);
+                if (terminated) return;
             }
         }
     }
 }
-
 int main()
 {
-    srand(time(0));
-    fin.open("input.txt");
-    fout.open("output.txt");
-
+    srand((unsigned)time(0));
+    fin.open("input2.txt");
+    fout.open("output2.txt");
     if (!fin.is_open())
     {
         cout << "Error opening input.txt\n";
         return 1;
     }
-
     load();
-
     fin.close();
     fout.close();
-    cout << "MOS Execution Completed!\n";
+    cout << "MOS Phase 2 Execution Completed!\n";
     return 0;
 }
