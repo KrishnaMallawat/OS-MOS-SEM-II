@@ -1,35 +1,25 @@
-MOSPHASE1                               
-MOSPHASE1                               
-SAME                                    
+HELLO WORLD                             
 
 NO ERROR
 
-~                                       
-~   ~                                   
-~   ~   ~                               
 
-NO ERROR
+OUT OF DATA
 
-*                                       
-**                                      
-***                                     
-****                                    
+LINEDATA                                
+LINEDATA                                
 
-NO ERROR
+LINE LIMIT EXCEEDED
 
-  O                                     
- /|\                                    
- / \                                    
+TIMER DATA                              
 
-NO ERROR
+TIME LIMIT EXCEEDED
 
-   /\                                   
-  /  \                                  
- /----\                                 
- |    |                                 
- | [] |                                 
- |    |                                 
- |____|                                 
 
-NO ERROR
+OPERATION CODE ERROR
+
+
+OPERAND ERROR
+
+
+INVALID PAGE FAULT
 
